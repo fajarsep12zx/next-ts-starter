@@ -1,0 +1,10 @@
+repositories:
+  - name: zebrax
+    url: s3://zebrax-helm-chart-staging/charts
+
+releases:
+  - name: INSERT_NAME
+    namespace: INSERT_NAMESPACE
+    chart: zebrax/api
+    values:
+      - ./values/api/values.yaml

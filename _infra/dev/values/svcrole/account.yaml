@@ -1,0 +1,12 @@
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "INSERT_SERVICE_ACCOUNT_NAME"
+  namespace: INSERT_NAMESPACE
+
+clusterrole:
+  create: false
+  name: micro-registry
+
+# warn
+# changes only namespace

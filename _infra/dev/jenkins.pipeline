@@ -1,0 +1,66 @@
+def ECR_REPO = 'INSERT_ECR_REPO_HERE'
+def GITHUB_REPO = 'INSERT_GITHUB_REPO_HERE'
+def PATH_KUBECONFIG = '/home/ubuntu/.kube/config-dev'
+
+node {
+    stage('Init'){
+        def dockerHome = tool 'docker'
+        env.PATH = "${dockerHome}/bin:${env.PATH}"
+    }
+    stage('Clone'){
+       git branch: 'develop', credentialsId: 'github', url: GITHUB_REPO
+    }
+    script{
+        echo 'This is Frontend , lets Deploy'
+        stage('Build Docker'){
+            sh label: '', script: '''
+            echo NODE_ENV=${NODE_ENV} >> .env
+            echo PORT=${PORT} >> .env
+            echo NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME} >> .env
+            echo NEXT_PUBLIC_GRAPHQL_HOST=${NEXT_PUBLIC_GRAPHQL_HOST} >> .env
+            yarn docker:build-prod -t '''+ECR_REPO+'''
+            '''
+        }
+        stage('Push to ECR'){
+            withDockerRegistry(credentialsId: 'ecr:ap-southeast-1:devops', toolName: 'docker', url: 'https://'+ECR_REPO) {
+                docker.image(ECR_REPO).push('latest')
+            }
+        }
+        stage('Rolling update deployment'){
+            script{
+                sh 'kubectl config use-context zebrax-dev'
+
+                K8S_IMAGE_ID = sh(returnStdout: true, script: '''
+                        kubectl get deployment INSERT_DEPLOYMENT_NAME -o=jsonpath='{$.spec.template.spec.containers[*].image}' -n INSERT_NAMESPACE
+                ''').trim()
+            }
+            script{
+                if (K8S_IMAGE_ID == ECR_REPO) {
+                    sh 'kubectl set image deployment INSERT_DEPLOYMENT_NAME api='+ECR_REPO+':latest -n INSERT_NAMESPACE'
+                }else{
+                    sh 'kubectl set image deployment INSERT_DEPLOYMENT_NAME api='+ECR_REPO+' -n INSERT_NAMESPACE'
+                }
+            }
+        }
+        stage('Cleaning up docker images'){
+            sh '''
+                docker rmi -f $(docker images | grep ''' + ECR_REPO + ''' | awk '{print $1,$3}' | grep -v IMAGE | awk '{print $2}')
+            '''
+            sh '''
+                docker rmi -f $(docker images --filter="dangling=true" -q --no-trunc)
+            '''
+        }
+    }
+    stage('Helmfile Frontend Deploy') {
+        withEnv(["KUBECONFIG=$PATH_KUBECONFIG"]) {
+            dir("_infra/dev"){
+                sh 'kubectl config use-context zebrax-dev'
+                sh 'helmfile --version'
+                sh 'helmfile apply'
+            }
+        }
+    }
+    stage('Cleaning up workspace'){
+       cleanWs()
+    }
+}

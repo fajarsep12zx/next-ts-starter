@@ -1,0 +1,90 @@
+replicaCount: 1
+
+secret:
+  enabled: false
+  name: ""
+  data: {}
+
+configMap:
+  enabled: false
+  mountPath: ""
+  readOnly: true
+  data: {}
+
+image:
+  repository: INSERT_ECR_REPO
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  annotations: {}
+  name: "INSERT_SERVICE_ACCOUNT_NAME"
+
+container:
+  port: 3000
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/cors-allow-headers: '*'
+    nginx.ingress.kubernetes.io/cors-allow-methods: '*'
+    nginx.ingress.kubernetes.io/cors-allow-origin: '*'
+    nginx.ingress.kubernetes.io/enable-cors: 'true'
+    nginx.ingress.kubernetes.io/affinity: cookie
+    nginx.ingress.kubernetes.io/from-to-www-redirect: 'true'
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: INSERT_HOST
+      paths: [/]
+  tls: []
+
+application:
+  enabled: true
+  env:
+    - name: PORT
+      value: "3000"
+    - name: NODE_ENV
+      value: "production"
+    - name: NEXT_PUBLIC_APP_NAME
+      value: "Next.js TypeScript Boilerplate"
+    - name: NEXT_PUBLIC_GRAPHQL_HOST
+      value: "https://graphqlzero.almansi.me/api"
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 100Mi
+  requests:
+    cpu: 80m
+    memory: 80Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 75
+
+nodeSelector:
+  enabled: true
+  select:
+    node: "sharedproject-dev"
+
+tolerations: []
+
+affinity: {}
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
